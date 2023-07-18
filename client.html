@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="initial-scale=1.0">
+    <title>WEBRTC Client</title>
+</head>
+<body>
+    <textarea style='width: 99%; height: 115px' id="sdp"></textarea>
+    <button id="send" onclick="setRemote()">Send</button>
+
+    <video id="video" autoplay width="100%"></video>
+
+    <script>
+        const pc = new RTCPeerConnection();
+
+        pc.onicegatheringstatechange = (ev) => {
+            if (pc.iceGatheringState === 'complete') {
+                const answer = pc.localDescription;
+                document.getElementById('sdp').value = JSON.stringify(answer);
+            }
+        }
+
+        function setRemote() {
+            console.log("setRemote");
+
+            const offer = JSON.parse(document.getElementById('sdp').value);
+            pc.setRemoteDescription(offer);
+            
+            pc.createAnswer().then((answer) =>
+                pc.setLocalDescription(answer)
+            );
+
+            pc.ontrack = (ev) => {
+                console.log("ontrack");
+                if (ev.streams && ev.streams[0]) {
+                    const videoElement = document.getElementById('video');
+                    videoElement.srcObject = ev.streams[0];
+                    videoElement.play();
+                }
+            };
+        }
+    </script>
+</body>
+</html>

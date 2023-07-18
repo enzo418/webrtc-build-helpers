@@ -1,0 +1,10 @@
+#pragma once
+
+#cmakedefine WEBRTC_WIN
+#cmakedefine WEBRTC_MAC
+#cmakedefine WEBRTC_POSIX
+#cmakedefine WEBRTC_LINUX
+
+#cmakedefine WEBRTC_USE_H264
+
+#cmakedefine USE_X11
