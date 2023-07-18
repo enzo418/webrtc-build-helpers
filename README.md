@@ -14,14 +14,14 @@ set(DEPENDENCY_LIB_DIR ${DEPENDENCY_INSTALL_DIR}/lib)
 
 ExternalProject_Add(
     web-rtc-build
-    SOURCE_DIR ${PATH_TO_THIS_REPO}
+    GIT_REPOSITORY https://github.com/enzo418/webrtc-build-helpers
+    GIT_TAG main
     CMAKE_ARGS
         -DCMAKE_INSTALL_PREFIX=${DEPENDENCY_INSTALL_DIR}
         -DCMAKE_INSTALL_INCLUDEDIR=${DEPENDENCY_INCLUDE_DIR}
         -DCMAKE_INSTALL_LIBDIR=${DEPENDENCY_LIB_DIR}
         -DWEBRTC_BUILD_TYPE=${WEBRTC_BUILD_TYPE}
         -DWEBRTC_INCLUDE_DEFAULT_AUDIO=${WEBRTC_INCLUDE_DEFAULT_AUDIO} # ON/OFF
-    TEST_COMMAND ""
 )
 
 # add the following to your project/target(s)
