@@ -32,6 +32,8 @@ namespace broadrtc {
    */
   class BroadcastSource : public rtc::VideoSourceInterface<webrtc::VideoFrame> {
    public:
+    virtual ~BroadcastSource() {}
+
     void AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink,
                          const rtc::VideoSinkWants& wants) override {
       m_sinksAdded.insert(reinterpret_cast<intptr_t>(sink));
@@ -53,20 +55,34 @@ namespace broadrtc {
       m_broadcaster.OnFrame(frame);
     }
 
-    void SetStateChangeObserver(BroadcastStateChangeObserver* observer) {
-      assert(observer != nullptr);
-      m_stateChangeObserver = observer;
-    }
-
-    virtual ~BroadcastSource() {}
-
-    // don't forget to call the base class Start()
+    /**
+     * @brief Start the source, so it eventually calls OnFrame.
+     *
+     * @remark Most likely you will want to override this function, start you
+     * capture loop or register some callback, and call the base class Start()
+     * function.
+     *
+     * @remark This function is called by BroadcastTrackSource when it is added
+     * to a PeerConnection.
+     *
+     * @return true
+     * @return false
+     */
     virtual bool Start() {
       m_stateChangeObserver->OnBroadcastStarted();
       return true;
     }
 
-    // don't forget to call the base class Stop()
+    /**
+     * @brief Stop the source.
+     *
+     * @remark This function is not called by any broadcast class. So, if your
+     * source doesn't need to be stopped, you may ignore it. Else, it will
+     * likely to be called from OnNoAudience().
+     *
+     * @return true
+     * @return false
+     */
     virtual bool Stop() {
       m_stateChangeObserver->OnBroadcastStopped();
       return true;
@@ -85,6 +101,14 @@ namespace broadrtc {
     virtual void OnNoAudience() {
       RTC_LOG(LS_INFO) << "A BroadcastSource no longer has an audience";
     }
+
+   private:
+    void SetStateChangeObserver(BroadcastStateChangeObserver* observer) {
+      assert(observer != nullptr);
+      m_stateChangeObserver = observer;
+    }
+
+    friend class BroadcastTrackSource;  // access to SetStateChangeObserver
 
    private:
     rtc::VideoBroadcaster m_broadcaster;
