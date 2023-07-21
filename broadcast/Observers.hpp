@@ -4,21 +4,66 @@
 //
 
 #include <future>
+#include <iostream>
+#include <stdexcept>
 
 #include "webrtc/api/peer_connection_interface.h"
 
 namespace broadrtc {
-  class DummyConnectionObserver : public webrtc::PeerConnectionObserver {
-    void OnSignalingChange(
+  /**
+   * @brief The base connection observer class that does not react to events,
+   * but has the peer connection that is being observed.
+   *
+   */
+  class BasicConnectionObserver : public webrtc::PeerConnectionObserver {
+   public:
+    void SetPeerConnection(
+        rtc::scoped_refptr<webrtc::PeerConnectionInterface> peerConnection) {
+      m_peerConnection = peerConnection;
+    }
+
+   public:
+    virtual void OnSignalingChange(
         webrtc::PeerConnectionInterface::SignalingState) override {}
 
-    void OnDataChannel(
+    virtual void OnDataChannel(
         rtc::scoped_refptr<webrtc::DataChannelInterface>) override {}
 
-    void OnIceGatheringChange(
+    virtual void OnIceGatheringChange(
         webrtc::PeerConnectionInterface::IceGatheringState) override {}
 
-    void OnIceCandidate(const webrtc::IceCandidateInterface*) override {}
+    virtual void OnIceCandidate(const webrtc::IceCandidateInterface*) override {
+    }
+
+    virtual void OnConnectionChange(
+        webrtc::PeerConnectionInterface::PeerConnectionState) override {}
+
+   protected:
+    rtc::scoped_refptr<webrtc::PeerConnectionInterface> m_peerConnection;
+  };
+
+  /**
+   * @brief This observer will close the connection if the connection state
+   * changes to failed, which usually happens after a timeout on disconnect.
+   */
+  class TerminatorConnectionObserver : public BasicConnectionObserver {
+   public:
+    void OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState
+                                new_state) override {
+      // The previous state doesn't apply (it's not closed) and any
+      // RTCIceTransports are in the "failed" state.
+      if (new_state ==
+          webrtc::PeerConnectionInterface::PeerConnectionState::kFailed) {
+        if (m_peerConnection.get() != nullptr) {
+          m_peerConnection->Close();
+        } else {
+          throw std::runtime_error(
+              "The peer connection is null. Make sure to call "
+              "SetPeerConnection or use your own "
+              "webrtc::PeerConnectionObserver.");
+        }
+      }
+    }
   };
 
   typedef std::promise<const webrtc::SessionDescriptionInterface*> PromiseSDP;

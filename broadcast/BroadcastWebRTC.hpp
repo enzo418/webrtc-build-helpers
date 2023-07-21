@@ -133,8 +133,7 @@ namespace broadrtc {
      */
     std::pair<Peer::PeerID, std::string> ConnectToChannel(
         const std::string& sourceId,
-        std::unique_ptr<webrtc::PeerConnectionObserver> connectionObserver =
-            nullptr) {
+        std::unique_ptr<BasicConnectionObserver> connectionObserver = nullptr) {
       RTC_LOG(LS_INFO) << "ConnectToChannel " << sourceId;
 
       rtc::scoped_refptr<BroadcastTrackSource> source;
@@ -143,7 +142,7 @@ namespace broadrtc {
       if (found == m_sources.end()) {
         m_mutexSourcesMap.unlock();
         OnChannelNotFound(sourceId);
-        return ConnectToChannel(sourceId);
+        return ConnectToChannel(sourceId, std::move(connectionObserver));
       }
       m_mutexSourcesMap.unlock();
 
@@ -277,10 +276,10 @@ namespace broadrtc {
     virtual void OnChannelNotFound(const std::string& sourceId) = 0;
 
    private:
-    Peer& CreatePeerConnection(std::unique_ptr<webrtc::PeerConnectionObserver>
-                                   connectionObserver = nullptr) {
+    Peer& CreatePeerConnection(
+        std::unique_ptr<BasicConnectionObserver> connectionObserver = nullptr) {
       if (connectionObserver == nullptr) {
-        connectionObserver = std::make_unique<DummyConnectionObserver>();
+        connectionObserver = std::make_unique<TerminatorConnectionObserver>();
       }
 
       webrtc::PeerConnectionInterface::RTCConfiguration config;
@@ -304,9 +303,15 @@ namespace broadrtc {
 
       Peer::PeerID peerId = std::to_string(numPeerId);
 
+      rtc::scoped_refptr<webrtc::PeerConnectionInterface> pc =
+          std::move(errorOrPC.value());
+
+      ((BasicConnectionObserver*)connectionObserver.get())
+          ->SetPeerConnection(pc);
+
       m_peerConnections[peerId] =
           Peer {.id = peerId,
-                .connection = std::move(errorOrPC.value()),
+                .connection = std::move(pc),
                 .connObserver = std::move(connectionObserver)};
 
       return m_peerConnections[peerId];

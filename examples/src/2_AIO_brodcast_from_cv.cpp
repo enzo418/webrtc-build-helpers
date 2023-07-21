@@ -3,6 +3,7 @@
 //
 
 #include <atomic>
+#include <broadrtc/Observers.hpp>
 #include <cstdint>
 #include <future>
 #include <iostream>
@@ -140,6 +141,31 @@ class MultiBroadcastWebRTC : public broadrtc::BroadcastWebRTC {
   }
 };
 
+std::atomic_bool disconnected = false;
+
+class TerminatorWithLoggingConnectionObserver
+    : public broadrtc::BasicConnectionObserver {
+ public:
+  void OnConnectionChange(
+      webrtc::PeerConnectionInterface::PeerConnectionState new_state) override {
+    // The previous state doesn't apply (it's not closed) and any
+    // RTCIceTransports are in the "failed" state.
+    if (new_state ==
+        webrtc::PeerConnectionInterface::PeerConnectionState::kFailed) {
+      if (m_peerConnection.get() != nullptr) {
+        std::cout << "The connection will be terminated." << std::endl;
+        m_peerConnection->Close();
+        disconnected = true;
+      } else {
+        throw std::runtime_error(
+            "The peer connection is null. Make sure to call "
+            "SetPeerConnection or use your own "
+            "webrtc::PeerConnectionObserver.");
+      }
+    }
+  }
+};
+
 int main() {
   broadrtc::BroadcastWebRTC::InitWebRTC(broadrtc::BroadcastWebRTC::LS_WARNING);
 
@@ -151,7 +177,9 @@ int main() {
 
     while (read != 'q') {
       // try {
-      auto [clientId, offer] = broadcast.ConnectToChannel(sourceId);
+      auto [clientId, offer] = broadcast.ConnectToChannel(
+          sourceId,
+          std::make_unique<TerminatorWithLoggingConnectionObserver>());
       // } catch :)
 
       std::cout << "clientId: " << clientId << std::endl;
@@ -172,9 +200,16 @@ int main() {
 
       std::cout << "Press enter to end connection" << std::endl;
 
-      read = std::cin.get();
+      auto future = std::async(std::launch::async,
+                               []() -> char { return std::cin.get(); });
 
-      broadcast.EndConnection(clientId);
+      while (!disconnected && future.wait_for(std::chrono::milliseconds(418)) !=
+                                  std::future_status::ready) {
+      }
+
+      disconnected = false;
+
+      broadcast.EndConnection(clientId);  // OK if disconnected == true
     }
   }
 
