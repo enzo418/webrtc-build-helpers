@@ -68,7 +68,7 @@ function(execute_proc_info)
         # NOTE: cmake doesn't show the ouput unless output/error_variable is not set
     )
     if (NOT _RESULT EQUAL 0)
-        message(FATAL_ERROR "Error (check above): " ${_RESULT}) # ${_OUTPUT} ${_RESULT}
+        message(FATAL_ERROR "Error (check above): " ${_RESULT} "\n TIP: Ensure you have 'ninja' installed and accessible from anywhere.") # ${_OUTPUT} ${_RESULT}
         
         if (EP_WRAPPER_ERROR_VARIABLE)
             set(${EP_WRAPPER_ERROR_VARIABLE} ${_ERROR} PARENT_SCOPE)
